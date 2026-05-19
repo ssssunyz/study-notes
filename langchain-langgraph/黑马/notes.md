@@ -1,3 +1,53 @@
+Source: https://www.bilibili.com/video/BV178w1z7EHQ?spm_id_from=333.788.videopod.episodes&vd_source=5c63af6701b1ba50b8d6ba3394d52dc8&p=14
+
 ## 初始化模型
-新版可以用`init_chat_model`代替`ChatOpenAI`，langchain通过传入的model_name隐式推导出用的什么model。
+新版可以用`init_chat_model`代替`ChatOpenAI`，langchain通过传入的model的string隐式推导出用的什么model
+
 <img src="./pics/截屏2026-05-18%20下午9.01.15.png" alt="Alt Text" width="800">
+
+## Messages
+`BaseMessage`代替冗杂的{role: "...", content: "..."}
+
+<img src="./pics/截屏2026-05-18 下午10.39.37.png" alt="Alt Text" width="800">
+<img src="./pics/截屏2026-05-18 下午10.45.53.png" alt="Alt Text" width="600">
+
+`message.pretty_print()`封装冗杂的loop print
+
+<img src="./pics/截屏2026-05-18 下午10.48.53.png" alt="Alt Text" width="600">
+
+### Multimodal - 支持image，pdf等
+不同model支持的format不一样，需要查阅官方文档
+
+<img src="./pics/截屏2026-05-18 下午10.56.14.png" alt="Alt Text" width="600">
+
+## Prompt Engineering
+output response的格式如果用`Pydantic`来定义，就可以不用在prompt里面写output format
+
+<img src="./pics/截屏2026-05-18 下午11.19.43.png" alt="Alt Text" width="600">
+
+## Tools
+稍微复杂一点的tools params也可以用`Pydantic`来定义，使用`@tool(args_schema=...`
+
+<img src="./pics/截屏2026-05-19 上午11.08.45.png" alt="Alt Text" width="700">
+
+### Prebuilt Tools
+https://docs.langchain.com/oss/python/integrations/tools
+ 
+#### Tavily Search 
+https://docs.langchain.com/oss/python/integrations/tools/tavily_search
+
+搜索引擎，实现agent实时联网。是给agent用的，不是给human用的
+
+<img src="./pics/截屏2026-05-19 下午2.07.12.png" alt="Alt Text" width="400"> <br>
+<img src="./pics/截屏2026-05-19 下午2.12.28.png" alt="Alt Text" width="600">
+
+缺点：
+- 如果只是简单的搜索，那么用langchain官方定义的Tavily会很<mark>浪费token</mark>，因为这个class里面定义了很多optional fields
+    - Solution:
+    - <img src="./pics/截屏2026-05-19 下午2.17.27.png" alt="Alt Text" width="400">
+- 默认结果不包括reference
+    - Solution: 强制结构化输出
+    - <img src="./pics/截屏2026-05-19 下午2.22.30.png" alt="Alt Text" width="700">
+    - ```python
+        print(response['structured_response'])
+    ```
