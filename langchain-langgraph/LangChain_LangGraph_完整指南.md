@@ -17,7 +17,8 @@
   - [3.6 LangGraph 加 Checkpointer（持久化 + Human-in-the-loop）](#36-langgraph-加-checkpointer持久化--human-in-the-loop)
 - [四、补充：FAISS 详解](#四补充faiss-详解)
 - [五、补充：Embedding API vs LLM API](#五补充embedding-api-vs-llm-api)
-- [六、Top 10 Interview Questions for AI Engineers (English)](#六top-10-interview-questions-for-ai-engineers-english)
+- [六、补充：没有tool的时候的behavior](#六补充没有tool的时候的behavior)
+- [七、Top 10 Interview Questions for AI Engineers (English)](#七top-10-interview-questions-for-ai-engineers-english)
 
 ---
 
@@ -635,6 +636,9 @@ print(result["messages"][-1].content)
 ```
 
 #### 3.4.2 详细注释版
+[TypedDict是什么](./LangGraph进阶答疑_TypedDict_ReAct_工具.md#1-typeddict-和-reducer-是什么typeddict-vs-pydantic)
+
+[Reducer是什么](./LangGraph进阶答疑_TypedDict_ReAct_工具.md#12-reducer-是什么)
 
 ```python
 # ============================================================
@@ -812,6 +816,7 @@ for m in result["messages"]:
 ```
 
 #### 3.5.2 详细注释版
+[图长这样](./LangGraph进阶答疑_TypedDict_ReAct_工具.md#2-code-351react-agent的可视化图)
 
 ```python
 # ============================================================
@@ -985,6 +990,8 @@ for m in result["messages"]:
 # 
 # 适合快速搭建。但理解上面的"手写版"对调试和定制非常重要。
 ```
+
+[create_react_agent](./LangGraph进阶答疑_TypedDict_ReAct_工具.md#3-create_react_agent-的具体实现)
 
 ---
 
@@ -1308,7 +1315,10 @@ rag_chain.invoke("公司年假政策？")
 
 ---
 
-## 六、Top 10 Interview Questions for AI Engineers (English)
+## 六、补充：没有tool的时候的behavior
+[如果用户问天气，但代码里没定义 `get_weather` tool，LLM 会怎么做？](./LangGraph进阶答疑_TypedDict_ReAct_工具.md#4-如果用户问天气但代码里没定义-get_weather-toolllm-会怎么做)
+
+## 七、Top 10 Interview Questions for AI Engineers (English)
 
 ### Q1: What is the difference between LangChain and LangGraph, and when would you use each?
 
@@ -1336,7 +1346,7 @@ In short: **LCEL for pipelines, LangGraph for agents and workflows**. The LangCh
 ### Q2: Explain LCEL (LangChain Expression Language). Why was it introduced and what does it give you for free?
 
 **Answer:**
-LCEL is a declarative composition language using the `|` operator to chain `Runnable` objects:
+LCEL is a declarative composition language using the `|` (pipeline) operator to chain `Runnable` objects:
 
 ```python
 chain = prompt | llm | parser
