@@ -163,97 +163,17 @@ END
 
 ---
 
-## 3. `create_react_agent` 的具体实现
-
-`from langgraph.prebuilt import create_react_agent` 是官方封装好的"傻瓜版"。它内部做的事，本质就是把 3.5.1 的手写代码包成一个函数:
-```python
-from langgraph.prebuilt import create_react_agent
-graph = create_react_agent(llm, tools)
-```
-
-省掉的就是下面 `my_create_react_agent` 里第 2~6 步那一大堆样板代码。官方版额外还提供了 `state_modifier`（自定义 system prompt）、`response_format`（结构化输出）、`pre_model_hook` 等高级功能，但**基本骨架完全一样**。理解手写版对调试和定制非常重要。
-
-下面是一个**忠实还原其核心逻辑**的实现：
-
-```python
-from typing import TypedDict, Annotated, Literal
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
-
-
-def my_create_react_agent(model, tools, checkpointer=None):
-    """
-    一个简化版的 create_react_agent。
-    官方版本功能更多（支持 state_modifier、结构化输出、错误处理等），
-    但核心骨架就是下面这些。
-    """
-
-    # ---- 第 1 步：让 model 知道有哪些 tools ----
-    model_with_tools = model.bind_tools(tools)
-
-    # ---- 第 2 步：定义 State ----
-    class AgentState(TypedDict):
-        messages: Annotated[list, add_messages]
-
-    # ---- 第 3 步：定义 agent 节点 ----
-    def call_model(state: AgentState):
-        response = model_with_tools.invoke(state["messages"])
-        return {"messages": [response]}
-
-    # ---- 第 4 步：tools 节点（用预置的 ToolNode）----
-    tool_node = ToolNode(tools)
-
-    # ---- 第 5 步：条件边的路由函数 ----
-    def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
-        last_message = state["messages"][-1]
-        if last_message.tool_calls:      # LLM 想调用工具
-            return "tools"
-        return END                       # LLM 给了最终答案
-
-    # ---- 第 6 步：组装图 ----
-    workflow = StateGraph(AgentState)
-    workflow.add_node("agent", call_model)
-    workflow.add_node("tools", tool_node)
-
-    workflow.add_edge(START, "agent")
-    workflow.add_conditional_edges("agent", should_continue)
-    workflow.add_edge("tools", "agent")   # 循环
-
-    # ---- 第 7 步：编译并返回 ----
-    return workflow.compile(checkpointer=checkpointer)
-
-
-# ===== 用法 =====
-from langchain_openai import ChatOpenAI
-from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage
-
-@tool
-def get_weather(city: str) -> str:
-    """获取指定城市的天气"""
-    return f"{city}今天晴天，25度"
-
-llm = ChatOpenAI(model="gpt-4o-mini")
-graph = my_create_react_agent(llm, [get_weather])
-
-result = graph.invoke({"messages": [HumanMessage("北京天气如何？")]})
-for m in result["messages"]:
-    m.pretty_print()
-```
----
-
-## 4. 如果用户问天气，但代码里没定义 `get_weather` tool，LLM 会怎么做？
+## 3. 如果用户问天气，但代码里没定义 `get_weather` tool，LLM 会怎么做？
 
 先说结论：**LLM 不会、也不可能调用一个没绑定给它的工具。它只会用自然语言回答。**
 
-### 4.1 原理
+### 3.1 原理
 
 `llm.bind_tools(tools)` 这一步，只会把 `tools` 列表里那些工具的 **schema（名称、参数、描述）** 放进发给 OpenAI/Anthropic 的 API 请求里。LLM 在那次请求中**只能看到这些工具**。
 
 如果 `tools` 里没有 `get_weather`，那么对 LLM 来说，`get_weather` 这个工具**根本不存在**。API 层面也不允许它返回一个未注册的工具调用。所以它**物理上无法**发起 `get_weather` 的 tool call。
 
-### 4.2 实际会发生什么
+### 3.2 实际会发生什么
 
 假设你的 agent 只绑定了 `get_population`，用户却问天气：
 
@@ -282,7 +202,7 @@ LLM 返回的文本内容，通常是下面几种之一（取决于模型和 pro
 
 3. **幻觉（hallucination）**——较差的模型或 prompt 不严谨时，可能**编造**一个看似具体的天气（"北京今天 22 度晴" 但其实是瞎说）。这是要警惕的。
 
-### 4.3 工程上的应对
+### 3.3 工程上的应对
 
 为了避免第 3 种「编造」，常见做法：
 
@@ -301,6 +221,6 @@ def get_weather(city: str) -> str:
 tools = [get_population, get_weather]   # 把工具补全
 ```
 
-### 4.4 一个边界情况
+### 3.4 一个边界情况
 
 极少数情况下，LLM 可能"幻觉出"一个不存在的工具调用（比如它脑补出 `get_weather` 并尝试调用）。如果真发生了，`ToolNode` 找不到对应工具会**报错**。官方 `create_react_agent` 和 `ToolNode` 对此有容错处理（可以把错误作为 `ToolMessage` 返回给 agent，让它重新决策），但这属于异常路径，正常情况下不会触发。
